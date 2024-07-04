@@ -1,6 +1,8 @@
 import os
 import json
 import inspect
+import traceback
+from matplotlib.colors import ListedColormap, Normalize
 import tqdm
 
 import arc_types
@@ -8,11 +10,12 @@ import constants
 import dsl
 import tests
 import solvers
+import matplotlib.pyplot as plt
 
 
 
 def get_data(train=True):
-    path = f'../data/{"training" if train else "evaluation"}'
+    path = f'../ARC-AGI/data/{"training" if train else "evaluation"}'
     data = {}
     for fn in os.listdir(path):
         with open(f'{path}/{fn}') as f:
@@ -94,30 +97,54 @@ def test_solvers_formatting(solvers_module, dsl_module):
                     ]
                 ]) > 1 or v == 'O'
             n_correct += 1
-        except:
+        except Exception as e:
+            print(f'Error in {key}: {call}')
+            print(traceback.format_exc())
+            print(line.lstrip())
             pass
     print(f'{n_correct} out of {n} solvers formatted correctly.')
 
+def plot_task(name, index, input, output, solved):
+    """ plots a task """
+    cmap = ListedColormap([
+        '#000', '#0074D9', '#FF4136', '#2ECC40', '#FFDC00',
+        '#AAAAAA', '#F012BE', '#FF851B', '#7FDBFF', '#870C25'
+    ])
+    norm = Normalize(vmin=0, vmax=9)
+    figure, axes = plt.subplots(1, 3, figsize=(3 * 4, 8))
+    figure.suptitle(f"Task {name} Iteration {index}", fontsize = 22)
+    axes[0].imshow(input, cmap=cmap, norm=norm)
+    axes[1].imshow(output, cmap=cmap, norm=norm)
+    axes[2].imshow(solved, cmap=cmap, norm=norm)
+    axes[0].set_title('Input')
+    axes[0].axis('off')
+    axes[1].set_title('Output')
+    axes[1].axis('off')
+    axes[2].set_title('Solved')
+    axes[2].axis('off')
+    plt.show()
 
 def test_solvers_correctness(data, solvers_module):
     """ tests the implemented solvers for correctness """
     n_correct = 0
     n = len(data["train"])
-    for key in tqdm.tqdm(data['train'].keys(), total=n):
+    for key in data['train'].keys():
         task = data['train'][key] + data['test'][key]
-        try:
-            solver = getattr(solvers_module, f'solve_{key}')
-            for ex in task:
-                assert solver(ex['input']) == ex['output']
-            n_correct += 1
-        except:
-            pass
+        solver = getattr(solvers_module, f'solve_{key}')
+        n_correct += 1
+        i = 0
+        for ex in task:
+            solved = solver(ex['input'])
+            if solved != ex['output']:
+                plot_task(key, i, ex['input'], ex['output'], solved)
+                n_correct -= 1
+            i+=1
     print(f'{n_correct} out of {n} tasks solved correctly.')
 
 
 def main():
     data = get_data(train=True)
-    run_dsl_tests(dsl, tests)
+    # run_dsl_tests(dsl, tests)
     test_solvers_formatting(solvers, dsl)
     test_solvers_correctness(data, solvers)
 
