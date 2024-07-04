@@ -2352,7 +2352,7 @@ def solve_c0f76784(I):
 
 
 def solve_1b60fb0c(I):
-    x1 = rot180(I)
+    x1 = rot90(I)
     x2 = ofcolor(I, ONE)
     x3 = ofcolor(x1, ONE)
     x4 = neighbors(ORIGIN)
